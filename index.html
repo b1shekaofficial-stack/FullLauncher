@@ -105,6 +105,9 @@ header{
 }
 .hero p{max-width:560px;font-size:17px;line-height:1.65;color:#c9c9c9}
 .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+.dl-badge{display:inline-flex;align-items:center;gap:9px;width:max-content;padding:8px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);backdrop-filter:blur(10px);font-size:13px;letter-spacing:.02em;color:#d6d6d6;margin-bottom:-8px}
+.dl-badge b{font-size:14px;font-weight:900;color:#fff;letter-spacing:.02em;text-transform:none}
+.dl-badge i{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 10px rgba(255,255,255,.9);font-style:normal;flex:0 0 auto}
 .btn{
   display:inline-flex;align-items:center;gap:10px;
   padding:15px 30px;border-radius:16px;
@@ -248,6 +251,7 @@ footer{border-top:1px solid var(--stroke);padding:34px 0 40px}
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="wrap">
+    <div class="dl-badge"><i></i><b id="dlCount">—</b><span id="dlCountLabel">скачиваний</span></div>
     <h1>МАЙНКРАФТ<br><span class="ghost">В ОДИН КЛИК</span></h1>
     <p>Full Launcher — свой игровой клиент: версии 1.7.10–26.3, Forge, Fabric, OptiFine, моды, шейдеры и ресурс-паки. Всё в одном окне, без браузера и ручной установки Java.</p>
     <div class="hero-actions">
@@ -497,6 +501,55 @@ window.addEventListener("storage", (e)=>{
       document.getElementById("fileSize").textContent = (len/1048576).toFixed(2).replace(".",",")+" МБ";
     }
   }).catch(()=>{});
+})();
+
+// ===== счётчик скачиваний =====
+(function(){
+  var NS="full-launcher-fl", KEY="downloads", API="https://abacus.jasoncameron.dev";
+  var el=document.getElementById("dlCount");
+  function short(n){
+    n=Number(n)||0;
+    if(n<1000) return String(n);
+    var units=[[1e9,"млрд"],[1e6,"млн"],[1e3,"тыс."]];
+    for(var i=0;i<units.length;i++){
+      var v=units[i][0], u=units[i][1];
+      if(n>=v){
+        var x=n/v;
+        var s=(x>=100)?String(Math.round(x)):x.toFixed(1).replace(/\.0$/,"").replace(".",",");
+        return s+" "+u;
+      }
+    }
+    return String(n);
+  }
+  var labelEl=document.getElementById("dlCountLabel");
+  function plural(n){
+    n=Math.abs(Math.floor(Number(n)||0));
+    var m10=n%10, m100=n%100;
+    if(m10===1 && m100!==11) return "\u0441\u043a\u0430\u0447\u0438\u0432\u0430\u043d\u0438\u0435";
+    if(m10>=2 && m10<=4 && (m100<12 || m100>14)) return "\u0441\u043a\u0430\u0447\u0438\u0432\u0430\u043d\u0438\u044f";
+    return "\u0441\u043a\u0430\u0447\u0438\u0432\u0430\u043d\u0438\u0439";
+  }
+  function put(n){
+    n=Number(n)||0;
+    if(el){ el.textContent=short(n); el.title=String(n); }
+    if(labelEl){
+      var abbr=(n>=1000);
+      labelEl.textContent = abbr ? "\u0441\u043a\u0430\u0447\u0438\u0432\u0430\u043d\u0438\u0439" : plural(n);
+    }
+  }
+  function load(){
+    fetch(API+"/get/"+NS+"/"+KEY,{cache:"no-store",keepalive:true}).then(function(r){ return r.ok?r.json():null; })
+      .then(function(d){ if(d&&typeof d.value==="number") put(d.value); }).catch(function(){});
+  }
+  var links=document.querySelectorAll('a[href$="FullLauncherSetup.exe"]');
+  for(var i=0;i<links.length;i++){
+    links[i].addEventListener("click",function(){
+      fetch(API+"/hit/"+NS+"/"+KEY,{cache:"no-store",keepalive:true}).then(function(r){ return r.ok?r.json():null; })
+        .then(function(d){ if(d&&typeof d.value==="number") put(d.value); else setTimeout(load,1500); })
+        .catch(function(){ setTimeout(load,1500); });
+    });
+  }
+  load();
 })();
 
 renderAuth();
